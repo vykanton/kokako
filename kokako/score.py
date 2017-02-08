@@ -14,7 +14,7 @@ class Audio(object):
         self.specgram = None
         self.specgram_freqs = None
         self.specgram_bins = None
- 
+
     def calculate_specgram(self, nfft, noverlap, **kwargs):
         spec = mlab.specgram(self.audio, NFFT=nfft, Fs=self.framerate, noverlap=noverlap, **kwargs)
         self.specgram_nfft = nfft
@@ -22,7 +22,7 @@ class Audio(object):
         self.specgram = spec[0]
         self.specgram_freqs = spec[1]
         self.specgram_bins = spec[2]
-    
+
     @property
     def nchannels(self):
         try:
@@ -46,11 +46,11 @@ def get_audio(filename, offset=0, duration=0):
             nframes = int(duration*framerate*nchannels)
         else:
             nframes = wav.getnframes() - int(offset*framerate*nchannels)
-        duration = nframes/float(framerate*nchannels) 
+        duration = nframes/float(framerate*nchannels)
         frames = wav.readframes(nframes)
     return Audio(np.array(struct.unpack_from ("%dh" % (len(frames)/2,), frames)), framerate)
 
-                
+
 class Detector(object):
     """Base class for detectors
     """
@@ -68,6 +68,3 @@ class Detector(object):
     def score(self, audio):
         """Returns the score as a number"""
         raise NotImplementedError
-
-        
-
