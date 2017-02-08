@@ -1,3 +1,6 @@
+# ignore models folder for now so we don't push around big models
+kokako/detectors/models
+
 *.py[cod]
 
 # C extensions
