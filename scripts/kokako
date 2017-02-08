@@ -5,7 +5,7 @@ import os
 import sys
 
 from kokako.score import Detector, get_audio
-from kokako.detectors import  *
+from kokako.detectors import *
 
 # Get the detectors that we know about
 detectors = Detector.__subclasses__()
@@ -14,15 +14,17 @@ for d in detectors:
     detector_lookup[d.code] = d()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(epilog="Available detectors:\n  " +
-                                     "\n  ".join(d for d in detector_lookup),
-                                    formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        epilog="Available detectors:\n  " +
+               "\n  ".join(d for d in detector_lookup),
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-o',
-        '--output',
-        default=sys.stdout,
-        type=argparse.FileType('w'),
-        help='output file')
-    parser.add_argument('detectors', nargs='+', help='name of the detectors to run')
+                        '--output',
+                        default=sys.stdout,
+                        type=argparse.FileType('w'),
+                        help='output file')
+    parser.add_argument('detectors', nargs='+',
+                        help='name of the detectors to run')
     parser.add_argument('-p', '--path', help='path to walk over', default='.')
 
     args = parser.parse_args()
@@ -32,7 +34,7 @@ if __name__ == "__main__":
             detectors.append(detector_lookup[detector])
     except KeyError:
         msg = "Unknown detector, %s" % args.detectors
-        raise ValueError, msg
+        raise ValueError(msg)
 
     header = ['path'] + detectors
     for root, dirs, files in os.walk(args.path):
@@ -41,4 +43,4 @@ if __name__ == "__main__":
                 path = os.path.join(root, f)
                 audio = get_audio(path)
                 for detector in detectors:
-                    print path, detector, detector.score(audio)
+                    print(path, detector, detector.score(audio))
