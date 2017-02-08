@@ -2,18 +2,13 @@
 import numpy as np
 import tensorflow as tf
 
-from kokako.score import Detector
 
-
-class TFGraphDetector(Detector):
-    """Base class for detectors which load and run a tensorflow graph.
+class TFGraphUser(object):
+    """Base class for objects which load and run a tensorflow graph.
     The standard implementation does not run any initialisers, we assume the
     graph has been frozen into a single GraphDef with all variables folded
     into constants.
     """
-    code = 'tf-graph-base'
-    description = "Base for detectors implemented in tensorflow"
-    version = '0.0.1'
 
     @staticmethod
     def chunk_audio(audio, chunk_size, hop_size=None):

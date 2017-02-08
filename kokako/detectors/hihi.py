@@ -3,10 +3,11 @@ TFGraphDetector with some hardcoded parameters to point to a pre-trained
 Hihi detector."""
 import os
 
-from kokako.detectors.tfgraph import TFGraphDetector
+from kokako.detectors.tfgraph import TFGraphUser
+from kokako.score import Detector
 
 
-class HihiCNN(TFGraphDetector):
+class HihiCNN(Detector, TFGraphUser):
     code = 'hihi'
     description = 'Loads a trained convolutional neural net for Hihi detection'
     version = '0.0.1'
