@@ -33,6 +33,7 @@ class HihiCNN(Detector, TFGraphUser):
         # some constants
         self._audio_chunk_size = 7680  # how many samples we deal with at once
         self._audio_framerate = 24000  # expected sample rate of the audio
+        self._audio_hop_size = self._audio_chunk_size // 2
 
     def score(self, audio):
         """score some audio using the tensorflow graph"""
@@ -47,7 +48,4 @@ class HihiCNN(Detector, TFGraphUser):
         result = self.average_graph_outputs(audio_data,
                                             self._audio_chunk_size,
                                             self._audio_hop_size)
-        # the hihi detector gives us mean and variance from the ensemble, so
-        # what should we do with them?
-        # for now just return the mean*100 to get it into a goodd range
-        return result[0] * 100
+        return result
