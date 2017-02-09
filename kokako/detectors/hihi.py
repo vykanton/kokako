@@ -2,6 +2,7 @@
 TFGraphDetector with some hardcoded parameters to point to a pre-trained
 Hihi detector."""
 import os
+import numpy as np
 
 from kokako.detectors.tfgraph import TFGraphUser
 from kokako.score import Detector
@@ -25,10 +26,28 @@ class HihiCNN(Detector, TFGraphUser):
         """
         if not detector_path:
             detector_path = os.path.join(
-                os.path.dirname(__file__), 'model', 'hihi.pb')
+                os.path.dirname(__file__), 'models', 'hihi.pb')
 
-        super(HihiDetector, self).__init__(detector_path)
+        super(HihiCNN, self).__init__(detector_path)
+
+        # some constants
+        self._audio_chunk_size = 7680  # how many samples we deal with at once
+        self._audio_framerate = 24000  # expected sample rate of the audio
 
     def score(self, audio):
         """score some audio using the tensorflow graph"""
-        pass
+        # prepare the audio (convert to floating point, ensure the framerate)
+        audio_data = audio.audio  # assume 16 bit (the loading code does)
+        audio_data = audio_data.astype(np.float32) / (2**15)
+
+        if audio.framerate != self._audio_framerate:
+            print('framerate is wrong (expected {}, found {})'.format(
+                self._audio_framerate, audio.framerate))
+
+        result = self.average_graph_outputs(audio_data,
+                                            self._audio_chunk_size,
+                                            self._audio_hop_size)
+        # the hihi detector gives us mean and variance from the ensemble, so
+        # what should we do with them?
+        # for now just return the mean*100 to get it into a goodd range
+        return result[0] * 100
