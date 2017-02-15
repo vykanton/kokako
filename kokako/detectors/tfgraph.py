@@ -154,4 +154,4 @@ class TFGraphUser(object):
         """
         chunk_outputs = self.collect_graph_outputs(audio, chunk_size, hop_size)
         chunk_outputs = np.array(chunk_outputs)
-        return np.mean(chunk_outputs, axis=0)
+        return np.max(chunk_outputs, axis=0)
