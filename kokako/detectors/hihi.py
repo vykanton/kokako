@@ -28,7 +28,8 @@ class HihiCNN(Detector, TFGraphUser):
             detector_path = os.path.join(
                 os.path.dirname(__file__), 'models', 'hihi.pb')
 
-        super(HihiCNN, self).__init__(detector_path)
+        # how does this resolve?
+        super(HihiCNN, self).__init__(detector_path, num_cores=2)
 
         # some constants
         self._audio_chunk_size = 7680  # how many samples we deal with at once
