@@ -92,8 +92,6 @@ class TFGraphUser(object):
 
         self._session = tf.Session(graph=self._graph, config=session_config)
 
-        1/0
-
         # TODO: hacky and fragile
         # at this stage we need to use numpy for ffts on the cpu, so we have to
         # wrap it up. For this to work with a saved graph, we have to register
