@@ -81,7 +81,18 @@ class TFGraphUser(object):
             self._input_node, self._output_node = tf.import_graph_def(
                 self._graphdef, return_elements=return_elements)
 
-        self._session = tf.Session(graph=self._graph)
+        # Restrict tensorflow to a single thread
+        # as  mutex locking begins to dominate the cpu time available
+        # see: https://github.com/tensorflow/tensorflow/issues/583
+        # we have vary meny Tensor flow jobs to run (100s of 1000s) so
+        # internal parallisim is irrelevent anyway.
+        session_config = tf.ConfigProto(
+            intra_op_parallelism_threads=1,
+            inter_op_parallelism_threads=1)
+
+        self._session = tf.Session(graph=self._graph, config=session_config)
+
+        1/0
 
         # TODO: hacky and fragile
         # at this stage we need to use numpy for ffts on the cpu, so we have to
