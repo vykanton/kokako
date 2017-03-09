@@ -3,6 +3,7 @@
 import argparse
 import os
 import sys
+import time
 
 from kokako.score import Detector, get_audio
 from kokako.detectors import *
@@ -37,10 +38,19 @@ if __name__ == "__main__":
         raise ValueError(msg)
 
     header = ['path'] + detectors
+    times = {d.code: [] for d in detectors}
     for root, dirs, files in os.walk(args.path):
         for f in files:
             if f.endswith(".wav"):
                 path = os.path.join(root, f)
                 audio = get_audio(path)
                 for detector in detectors:
-                    print(path, detector, detector.score(audio))
+                    start = time.perf_counter()
+                    results = detector.score(audio)
+                    end = time.perf_counter()
+                    runtime = end - start
+                    times[detector.code].append(runtime)
+                    print(path, detector, results, runtime)
+    for detector in times:
+        avg = sum(times[detector])/float(len(times[detector]))
+        print('{}: {}s'.format(detector, avg))

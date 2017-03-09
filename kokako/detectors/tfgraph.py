@@ -1,6 +1,7 @@
 """A base for detectors implemented using a saved tensorflow graph."""
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.client import timeline
 
 
 # TODO: this is hacky and fragile
@@ -50,7 +51,8 @@ class TFGraphUser(object):
                 yield audio[i:i+chunk_size, ...]
             # if not, we should just fall off the end
 
-    def __init__(self, graphdef_path, input_name=None, output_name=None):
+    def __init__(self, graphdef_path, input_name=None, output_name=None,
+                 num_cores=None, trace=True):
         """Initialise the basic graph handling. Tries to be as
         self-contained as possible (ie. avoid a lot of tensorflows default
         global data structures). What this does is the following:
@@ -66,6 +68,12 @@ class TFGraphUser(object):
                 specified we try to use "input:0"
             output_name (Optional[str]): name of the output node. If not
                 specified we try to use "output:0"
+            num_cores (Optional[int]): how many cores to instruct tensorflow to
+                use. Default (None) will let tensorflow behave as it sees fit,
+                any other number will be passed in as the max for both intra-op
+                parallelism _and_ inter-op parallelism.
+            trace (Optional[bool]): whether to generate traces to profile
+                per-op performance.
         """
         self._input_node_name = input_name or 'input:0'
         self._output_node_name = output_name or 'output:0'
@@ -81,7 +89,23 @@ class TFGraphUser(object):
             self._input_node, self._output_node = tf.import_graph_def(
                 self._graphdef, return_elements=return_elements)
 
-        self._session = tf.Session(graph=self._graph)
+        self._run_metadata = tf.RunMetadata()
+
+        if trace:
+            self._run_options = tf.RunOptions(
+                trace_level=tf.RunOptions.FULL_TRACE)
+        else:
+            self._run_options = None
+        self._trace = trace
+
+        if num_cores:
+            conf = tf.ConfigProto(
+                intra_op_parallelism_threads=num_cores,
+                inter_op_parallelism_threads=num_cores)
+        else:
+            conf = None
+        self._session = tf.Session(graph=self._graph,
+                                   config=conf)
 
         # TODO: hacky and fragile
         # at this stage we need to use numpy for ffts on the cpu, so we have to
@@ -113,7 +137,18 @@ class TFGraphUser(object):
             ndarray: the result returned by running the output node.
         """
         result = self._session.run(self._output_node,
-                                   {self._input_node: input_value})
+                                   {self._input_node: input_value},
+                                   options=self._run_options,
+                                   run_metadata=self._run_metadata)
+        if self._trace:
+            if not tf.gfile.Exists('timeline.json'):
+                with open('timeline.json', 'w') as fp:
+                    tl = timeline.Timeline(self._run_metadata.step_stats)
+                    fp.write(tl.generate_chrome_trace_format())
+            # turn off tracing now, otherwise the remaining runs are wildly
+            # slow
+            self._run_options = None
+            self._run_metadata = None
         return result
 
     def collect_graph_outputs(self, audio, chunk_size, hop_size=None):
