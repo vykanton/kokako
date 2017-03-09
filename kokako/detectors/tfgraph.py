@@ -52,7 +52,7 @@ class TFGraphUser(object):
             # if not, we should just fall off the end
 
     def __init__(self, graphdef_path, input_name=None, output_name=None,
-                 num_cores=None, trace=False):
+                 num_cores=None, trace=True):
         """Initialise the basic graph handling. Tries to be as
         self-contained as possible (ie. avoid a lot of tensorflows default
         global data structures). What this does is the following:
