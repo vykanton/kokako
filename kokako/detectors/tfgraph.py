@@ -123,7 +123,8 @@ class TFGraphUser(object):
             ndarray: the result returned by running the output node.
         """
         result = self._session.run(self._output_node,
-                                   {self._input_node: input_value})
+                                   {self._input_node: input_value},
+                                   inter_op_thread_pool=1)
         return result
 
     def collect_graph_outputs(self, audio, chunk_size, hop_size=None):
