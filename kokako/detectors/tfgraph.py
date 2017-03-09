@@ -88,7 +88,8 @@ class TFGraphUser(object):
         # internal parallisim is irrelevent anyway.
         session_config = tf.ConfigProto(
             intra_op_parallelism_threads=1,
-            inter_op_parallelism_threads=1)
+            inter_op_parallelism_threads=1,
+            session_inter_op_thread_pool = 0)
 
         self._session = tf.Session(graph=self._graph, config=session_config)
 
