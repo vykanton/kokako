@@ -1,4 +1,6 @@
 """A base for detectors implemented using a saved tensorflow graph."""
+from collections import deque
+
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.client import timeline
@@ -52,7 +54,7 @@ class TFGraphUser(object):
             # if not, we should just fall off the end
 
     def __init__(self, graphdef_path, input_name=None, output_name=None,
-                 num_cores=None, trace=True):
+                 num_cores=None, trace=False):
         """Initialise the basic graph handling. Tries to be as
         self-contained as possible (ie. avoid a lot of tensorflows default
         global data structures). What this does is the following:
@@ -153,7 +155,7 @@ class TFGraphUser(object):
 
     def collect_graph_outputs(self, audio, chunk_size, hop_size=None):
         """Collects the outputs of the graph over chunks of audio. Expects the
-        audio to be in whateber format it is that the graph expects.
+        audio to be in whatever format it is that the graph expects.
 
         Args:
             audio (ndarray): numpy array, we assume the first dimension is
@@ -171,9 +173,28 @@ class TFGraphUser(object):
                    for chunk in self.chunk_audio(audio, chunk_size, hop_size)]
         return results
 
-    def average_graph_outputs(self, audio, chunk_size, hop_size=None):
-        """Averages the outputs of the graph over chunks of audio. Expects the
-        audio to be in whateber format it is that the graph expects.
+    def _max_block_average(self, outputs, block_size):
+        """Look at the average of block_size consecutive chunks in a row and
+        return the maximum. Note that block_size=1 will reduce to just taking
+        the maximum."""
+        # go through the chunks one at a time and collect the average
+        best = 0
+        block = deque()
+        # this is not especially efficient/clever
+        for chunk in outputs:
+            block.append(chunk)
+            if len(block) == block_size:
+                block_val = np.mean(block)
+                if block_val > best:
+                    best = block_val
+                block.popleft()
+        return best
+
+    def average_graph_outputs(self, audio, chunk_size, hop_size=None,
+                              block_size=2):
+        """Aggregates the outputs of the graph over chunks of audio. Expects the
+        audio to be in whateber format it is that the graph expects. Ultimately
+        returns the maximum value across the specified multiple of chunks.
 
         Args:
             audio (ndarray): numpy array, we assume the first dimension is
@@ -183,10 +204,12 @@ class TFGraphUser(object):
                 breaking off a new chunk. This can be used to extract
                 overlapping patches. If not specified, is set to `chunk_size`,
                 resulting in non-overlapping paches.
+            block_size (Optional[int]): how many chunks we average over to get
+                single prediction.
 
         Returns:
             scalar: the average
         """
         chunk_outputs = self.collect_graph_outputs(audio, chunk_size, hop_size)
         chunk_outputs = np.array(chunk_outputs)
-        return np.max(chunk_outputs, axis=0)
+        return self._max_block_average(chunk_outputs, block_size)
