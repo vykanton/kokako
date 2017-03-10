@@ -13,13 +13,16 @@ class HihiCNN(Detector, TFGraphUser):
     description = 'Loads a trained convolutional neural net for Hihi detection'
     version = '0.0.1'
 
-    def __init__(self, detector_path=None):
+    def __init__(self, detector_path=None, prediction_block_size=10):
         """Loads a hihi detector.
 
         Args:
             detector_path (Optional[str]): path to the hihi detector. If not
                 specified, looks for a file ./models/hihi.pb relative to the
                 directory of this file.
+
+            prediction_block_size (Optional[int]): how many consecutive
+                windows of audio we average over to get a prediction.
 
         Raises:
             NotFoundError: if we can't find the file.
@@ -32,9 +35,10 @@ class HihiCNN(Detector, TFGraphUser):
         super(HihiCNN, self).__init__(detector_path, num_cores=None)
 
         # some constants
-        self._audio_chunk_size = 7680  # how many samples we deal with at once
+        self._audio_chunk_size = 16128  # how many samples we deal with at once
         self._audio_framerate = 24000  # expected sample rate of the audio
-        self._audio_hop_size = self._audio_chunk_size // 2
+        self._audio_hop_size = self._audio_chunk_size // 1
+        self._prediction_block = prediction_block_size
 
     def score(self, audio):
         """score some audio using the tensorflow graph"""
@@ -48,5 +52,6 @@ class HihiCNN(Detector, TFGraphUser):
 
         result = self.average_graph_outputs(audio_data,
                                             self._audio_chunk_size,
-                                            self._audio_hop_size)
+                                            self._audio_hop_size,
+                                            self._prediction_block)
         return result
