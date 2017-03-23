@@ -140,7 +140,6 @@ class TFGraphUser(object):
         """
         result = self._session.run(self._output_node,
                                    {self._input_node: input_value},
-                                   inter_op_thread_pool=1)
                                    options=self._run_options,
                                    run_metadata=self._run_metadata)
         if self._trace:
