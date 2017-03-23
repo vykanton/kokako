@@ -1,6 +1,9 @@
 """A base for detectors implemented using a saved tensorflow graph."""
+from collections import deque
+
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.client import timeline
 
 
 # TODO: this is hacky and fragile
@@ -50,7 +53,8 @@ class TFGraphUser(object):
                 yield audio[i:i+chunk_size, ...]
             # if not, we should just fall off the end
 
-    def __init__(self, graphdef_path, input_name=None, output_name=None):
+    def __init__(self, graphdef_path, input_name=None, output_name=None,
+                 num_cores=None, trace=False):
         """Initialise the basic graph handling. Tries to be as
         self-contained as possible (ie. avoid a lot of tensorflows default
         global data structures). What this does is the following:
@@ -66,6 +70,12 @@ class TFGraphUser(object):
                 specified we try to use "input:0"
             output_name (Optional[str]): name of the output node. If not
                 specified we try to use "output:0"
+            num_cores (Optional[int]): how many cores to instruct tensorflow to
+                use. Default (None) will let tensorflow behave as it sees fit,
+                any other number will be passed in as the max for both intra-op
+                parallelism _and_ inter-op parallelism.
+            trace (Optional[bool]): whether to generate traces to profile
+                per-op performance.
         """
         self._input_node_name = input_name or 'input:0'
         self._output_node_name = output_name or 'output:0'
@@ -81,17 +91,23 @@ class TFGraphUser(object):
             self._input_node, self._output_node = tf.import_graph_def(
                 self._graphdef, return_elements=return_elements)
 
-        # Restrict tensorflow to a single thread
-        # as  mutex locking begins to dominate the cpu time available
-        # see: https://github.com/tensorflow/tensorflow/issues/583
-        # we have vary meny Tensor flow jobs to run (100s of 1000s) so
-        # internal parallisim is irrelevent anyway.
-        session_config = tf.ConfigProto(
-            intra_op_parallelism_threads=1,
-            inter_op_parallelism_threads=1,
-            session_inter_op_thread_pool = 1)
+        self._run_metadata = tf.RunMetadata()
 
-        self._session = tf.Session(graph=self._graph, config=session_config)
+        if trace:
+            self._run_options = tf.RunOptions(
+                trace_level=tf.RunOptions.FULL_TRACE)
+        else:
+            self._run_options = None
+        self._trace = trace
+
+        if num_cores:
+            conf = tf.ConfigProto(
+                intra_op_parallelism_threads=num_cores,
+                inter_op_parallelism_threads=num_cores)
+        else:
+            conf = None
+        self._session = tf.Session(graph=self._graph,
+                                   config=conf)
 
         # TODO: hacky and fragile
         # at this stage we need to use numpy for ffts on the cpu, so we have to
@@ -125,11 +141,22 @@ class TFGraphUser(object):
         result = self._session.run(self._output_node,
                                    {self._input_node: input_value},
                                    inter_op_thread_pool=1)
+                                   options=self._run_options,
+                                   run_metadata=self._run_metadata)
+        if self._trace:
+            if not tf.gfile.Exists('timeline.json'):
+                with open('timeline.json', 'w') as fp:
+                    tl = timeline.Timeline(self._run_metadata.step_stats)
+                    fp.write(tl.generate_chrome_trace_format())
+            # turn off tracing now, otherwise the remaining runs are wildly
+            # slow
+            self._run_options = None
+            self._run_metadata = None
         return result
 
     def collect_graph_outputs(self, audio, chunk_size, hop_size=None):
         """Collects the outputs of the graph over chunks of audio. Expects the
-        audio to be in whateber format it is that the graph expects.
+        audio to be in whatever format it is that the graph expects.
 
         Args:
             audio (ndarray): numpy array, we assume the first dimension is
@@ -147,9 +174,28 @@ class TFGraphUser(object):
                    for chunk in self.chunk_audio(audio, chunk_size, hop_size)]
         return results
 
-    def average_graph_outputs(self, audio, chunk_size, hop_size=None):
-        """Averages the outputs of the graph over chunks of audio. Expects the
-        audio to be in whateber format it is that the graph expects.
+    def _max_block_average(self, outputs, block_size):
+        """Look at the average of block_size consecutive chunks in a row and
+        return the maximum. Note that block_size=1 will reduce to just taking
+        the maximum."""
+        # go through the chunks one at a time and collect the average
+        best = 0
+        block = deque()
+        # this is not especially efficient/clever
+        for chunk in outputs:
+            block.append(chunk)
+            if len(block) == block_size:
+                block_val = np.mean(block)
+                if block_val > best:
+                    best = block_val
+                block.popleft()
+        return best
+
+    def average_graph_outputs(self, audio, chunk_size, hop_size=None,
+                              block_size=2):
+        """Aggregates the outputs of the graph over chunks of audio. Expects the
+        audio to be in whateber format it is that the graph expects. Ultimately
+        returns the maximum value across the specified multiple of chunks.
 
         Args:
             audio (ndarray): numpy array, we assume the first dimension is
@@ -159,10 +205,12 @@ class TFGraphUser(object):
                 breaking off a new chunk. This can be used to extract
                 overlapping patches. If not specified, is set to `chunk_size`,
                 resulting in non-overlapping paches.
+            block_size (Optional[int]): how many chunks we average over to get
+                single prediction.
 
         Returns:
             scalar: the average
         """
         chunk_outputs = self.collect_graph_outputs(audio, chunk_size, hop_size)
         chunk_outputs = np.array(chunk_outputs)
-        return np.max(chunk_outputs, axis=0)
+        return self._max_block_average(chunk_outputs, block_size)
