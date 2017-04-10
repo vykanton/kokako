@@ -176,7 +176,10 @@ class TFGraphUser(object):
     def _max_block_average(self, outputs, block_size):
         """Look at the average of block_size consecutive chunks in a row and
         return the maximum. Note that block_size=1 will reduce to just taking
-        the maximum."""
+        the maximum. If block size is 0 or None, we just average the whole
+        thing."""
+        if not block_size:
+            return np.mean(outputs)
         # go through the chunks one at a time and collect the average
         best = 0
         block = deque()
