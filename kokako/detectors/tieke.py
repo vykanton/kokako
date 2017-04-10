@@ -14,7 +14,7 @@ class TiekeRNN(Detector, TFGraphUser):
     description = 'Load a trained neural net for Tieke detection.'
     version = '0.0.1'
 
-    def __init__(self, detector_path=None, prediction_block_size=0):
+    def __init__(self, detector_path=None, prediction_block_size=2):
         """Loads a Tieke detector.
 
         Args:
@@ -35,11 +35,11 @@ class TiekeRNN(Detector, TFGraphUser):
                 os.path.dirname(__file__), 'models', 'tieke.pb')
 
         super(TiekeRNN, self).__init__(detector_path, num_cores=None,
-                                       trace=True)
+                                       trace=False, debug=False)
 
         self._audio_chunk_size = 76800  # aka 3.2s at 24kHz
         self._audio_framerate = 24000  # audio sample rate we trained on
-        self._audio_hop_size = self._audio_chunk_size // 2  # amount of overlap
+        self._audio_hop_size = self._audio_chunk_size // 1  # amount of overlap
         self._prediction_block = prediction_block_size
 
     def score(self, audio):
