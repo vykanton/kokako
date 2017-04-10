@@ -208,7 +208,7 @@ class TFGraphUser(object):
     def average_graph_outputs(self, audio, chunk_size, hop_size=None,
                               block_size=2):
         """Aggregates the outputs of the graph over chunks of audio. Expects the
-        audio to be in whateber format it is that the graph expects. Ultimately
+        audio to be in whatever format it is that the graph expects. Ultimately
         returns the maximum value across the specified multiple of chunks.
 
         Args:
