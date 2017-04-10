@@ -4,6 +4,7 @@ from collections import deque
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.client import timeline
+from tensorflow.python import debug as tfdbg
 
 
 # TODO: this is hacky and fragile
@@ -54,7 +55,7 @@ class TFGraphUser(object):
             # if not, we should just fall off the end
 
     def __init__(self, graphdef_path, input_name=None, output_name=None,
-                 num_cores=None, trace=False):
+                 num_cores=None, trace=False, debug=False):
         """Initialise the basic graph handling. Tries to be as
         self-contained as possible (ie. avoid a lot of tensorflows default
         global data structures). What this does is the following:
@@ -76,6 +77,8 @@ class TFGraphUser(object):
                 parallelism _and_ inter-op parallelism.
             trace (Optional[bool]): whether to generate traces to profile
                 per-op performance.
+            debug (Optional[bool]): whether to drop into the tensorflow debug
+                console on tf.Session.run() calls. Default is not to.
         """
         self._input_node_name = input_name or 'input:0'
         self._output_node_name = output_name or 'output:0'
@@ -108,6 +111,10 @@ class TFGraphUser(object):
             conf = None
         self._session = tf.Session(graph=self._graph,
                                    config=conf)
+        if debug:
+            self._session = tfdbg.LocalCLIDebugWrapperSession(self._session)
+            self._session.add_tensor_filter('has_inf_or_nan',
+                                            tfdbg.has_inf_or_nan)
 
         # TODO: hacky and fragile
         # at this stage we need to use numpy for ffts on the cpu, so we have to
@@ -191,6 +198,11 @@ class TFGraphUser(object):
                 if block_val > best:
                     best = block_val
                 block.popleft()
+        # may be a smaller chunk at the end
+        if len(block):
+            final_val = np.mean(block)
+            if final_val > best:
+                best = final_val
         return best
 
     def average_graph_outputs(self, audio, chunk_size, hop_size=None,
