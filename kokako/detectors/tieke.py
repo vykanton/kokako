@@ -12,7 +12,7 @@ import tensorflow.contrib.rnn
 class TiekeRNN(Detector, TFGraphUser):
     code = 'tieke'
     description = 'Load a trained neural net for Tieke detection.'
-    version = '0.0.1'
+    version = '1.0.0'
 
     def __init__(self, detector_path=None, prediction_block_size=2):
         """Loads a Tieke detector.
