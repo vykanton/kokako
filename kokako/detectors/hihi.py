@@ -13,7 +13,7 @@ class HihiCNN(Detector, TFGraphUser):
     description = 'Loads a trained convolutional neural net for Hihi detection'
     version = '0.0.1'
 
-    def __init__(self, detector_path=None, prediction_block_size=10):
+    def __init__(self, detector_path=None, prediction_block_size=10, num_cores=None):
         """Loads a hihi detector.
 
         Args:
@@ -24,6 +24,10 @@ class HihiCNN(Detector, TFGraphUser):
             prediction_block_size (Optional[int]): how many consecutive
                 windows of audio we average over to get a prediction.
 
+            num_cores (Optional[int]): how many CPU cores to use for the
+                tensorflow scoring - None is the default and uses all available
+                cores.
+
         Raises:
             NotFoundError: if we can't find the file.
         """
@@ -32,7 +36,7 @@ class HihiCNN(Detector, TFGraphUser):
                 os.path.dirname(__file__), 'models', 'hihi.pb')
 
         # how does this resolve?
-        super(HihiCNN, self).__init__(detector_path, num_cores=None)
+        super(HihiCNN, self).__init__(detector_path, num_cores=num_cores)
 
         # some constants
         self._audio_chunk_size = 16128  # how many samples we deal with at once
