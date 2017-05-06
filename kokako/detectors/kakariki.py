@@ -14,7 +14,7 @@ class KakarikiRNN(Detector, TFGraphUser):
     description = 'Load a trained neural net for Kakariki detection'
     version = '1.0.0'
 
-    def __init__(self, detector_path=None, prediction_block_size=2):
+    def __init__(self, detector_path=None, prediction_block_size=2, num_cores=None):
         """Loads the Kakariki detector.
 
         Args:
@@ -31,7 +31,7 @@ class KakarikiRNN(Detector, TFGraphUser):
         if not detector_path:
             detector_path = os.path.join(
                 os.path.dirname(__file__), 'models', 'kakariki.pb')
-        super(KakarikiRNN, self).__init__(detector_path, num_cores=None,
+        super(KakarikiRNN, self).__init__(detector_path, num_cores=num_cores,
                                           trace=False, debug=False)
 
         self._audio_chunk_size = 76800
